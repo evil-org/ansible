@@ -3,7 +3,7 @@ from __future__ import (absolute_import, division)
 __metaclass__ = type
 
 from ansible.compat.tests import unittest
-from ansible.compat.tests.mock import call, create_autospec
+from ansible.compat.tests.mock import call, create_autospec, patch
 from ansible.module_utils.basic import AnsibleModule
 
 from ansible.modules.extras.cloud.somebodyscomputer import firstmod
@@ -11,10 +11,16 @@ from ansible.modules.extras.cloud.somebodyscomputer import firstmod
 
 class TestFirstMod(unittest.TestCase):
 
-    def test__save_data__happy_path(self):
+    @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.write')
+    @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.fetch')
+    def test__save_data__happy_path(self, fetch, write):
         # Setup
         mod_cls = create_autospec(AnsibleModule)
         mod = mod_cls.return_value
+        mod.params = dict(
+            url="https://www.google.com",
+            dest="/tmp/firstmod.txt"
+        )
 
         # Exercise
         firstmod.save_data(mod)
@@ -24,3 +30,13 @@ class TestFirstMod(unittest.TestCase):
 
         expected = call(msg="Data saved", changed=True)
         self.assertEqual(expected, mod.exit_json.call_args)
+
+        self.assertEqual(1, fetch.call_count)
+
+        expected = call(mod.params["url"])
+        self.assertEqual(expected, fetch.call_args)
+
+        self.assertEqual(1, write.call_count)
+
+        expected = call(fetch.return_value, mod.params["dest"])
+        self.assertEqual(expected, write.call_args)
