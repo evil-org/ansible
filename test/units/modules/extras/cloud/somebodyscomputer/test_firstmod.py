@@ -5,7 +5,7 @@ __metaclass__ = type
 from urllib2 import URLError
 
 from ansible.compat.tests import unittest
-from ansible.compat.tests.mock import call, create_autospec, patch
+from ansible.compat.tests.mock import call, create_autospec, mock_open, patch
 from ansible.module_utils.basic import AnsibleModule
 
 from ansible.modules.extras.cloud.somebodyscomputer import firstmod
@@ -56,8 +56,6 @@ class TestFirstMod(unittest.TestCase):
             url="https://www.google.com",
             dest="/tmp/firstmod.txt"
         )
-
-        write.return_value = True
 
         # Exercise
         firstmod.save_data(mod)
@@ -118,7 +116,7 @@ class TestFirstMod(unittest.TestCase):
             dest="/tmp/firstmod.txt"
         )
 
-        write.return_value = False
+        write.side_effect = firstmod.WriteError
 
         # Exercise
         firstmod.save_data(mod)
@@ -138,3 +136,21 @@ class TestFirstMod(unittest.TestCase):
 
         expected = call(fetch.return_value, mod.params["dest"])
         self.assertEqual(expected, write.call_args)
+
+    def test__write__happy_path(self):
+        # Setup
+        data = "Somedata here"
+        dest = "/path/to/file.txt"
+
+        # Exercise
+        o_open = "ansible.modules.extras.cloud.somebodyscomputer.firstmod.open"
+        m_open = mock_open()
+        with patch(o_open, m_open, create=True):
+            firstmod.write(data, dest)
+
+        # Verify
+        expected = call(dest, "w")
+        self.assertEqual(expected, m_open.mock_calls[0])
+
+        expected = call().write(data)
+        self.assertEqual(expected, m_open.mock_calls[2])
