@@ -11,6 +11,28 @@ from ansible.modules.extras.cloud.somebodyscomputer import firstmod
 
 class TestFirstMod(unittest.TestCase):
 
+    @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.open_url')
+    def test__fetch__happy_path(self, open_url):
+        # Setup
+        url = "https://www.google.com"
+
+        # mock the return value of fetch_url
+        stream = open_url.return_value
+        stream.read.return_value = "<html><head></head><body>Hello</body></html>"
+        stream.getcode.return_value = 200
+        open_url.return_value = stream
+
+        # Exercise
+        data = firstmod.fetch(url)
+
+        # Verify
+        self.assertEqual(stream.read.return_value, data)
+
+        self.assertEqual(1, open_url.call_count)
+
+        expected = call(url)
+        self.assertEqual(expected, open_url.call_args)
+
     @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.write')
     @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.fetch')
     def test__save_data__happy_path(self, fetch, write):
