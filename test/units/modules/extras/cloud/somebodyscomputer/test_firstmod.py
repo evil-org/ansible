@@ -43,7 +43,7 @@ class TestFirstMod(unittest.TestCase):
         open_url.side_effect = URLError("Unknown URL")
 
         # Exercise
-        with self.assertRaises(URLError):
+        with self.assertRaises(firstmod.FetchError):
             firstmod.fetch(url)
 
     @patch('ansible.modules.extras.cloud.somebodyscomputer.firstmod.write')
@@ -87,16 +87,13 @@ class TestFirstMod(unittest.TestCase):
             dest="/tmp/firstmod.txt"
         )
 
-        fetch.side_effect = URLError("Unknown URL")
+        fetch.side_effect = firstmod.FetchError
 
         # Exercise
         firstmod.save_data(mod)
 
         # Verify
         self.assertEqual(1, mod.fail_json.call_count)
-
-        expected = call(msg="Data could not be retrieved")
-        self.assertEqual(expected, mod.fail_json.call_args)
 
         self.assertEqual(1, fetch.call_count)
 
@@ -123,9 +120,6 @@ class TestFirstMod(unittest.TestCase):
 
         # Verify
         self.assertEqual(1, mod.fail_json.call_count)
-
-        expected = call(msg="Data could not be saved")
-        self.assertEqual(expected, mod.fail_json.call_args)
 
         self.assertEqual(1, fetch.call_count)
 
@@ -154,3 +148,23 @@ class TestFirstMod(unittest.TestCase):
 
         expected = call().write(data)
         self.assertEqual(expected, m_open.mock_calls[2])
+
+    def test__write__write_error(self):
+        # Setup
+        data = "Somedata here"
+        dest = "/path/to/file.txt"
+
+        o_open = "ansible.modules.extras.cloud.somebodyscomputer.firstmod.open"
+        m_open = mock_open()
+        m_open.side_effect = IOError
+
+        # Exercise
+        with self.assertRaises(firstmod.WriteError):
+            with patch(o_open, m_open, create=True):
+                firstmod.write(data, dest)
+
+        # Verify
+        self.assertEqual(1, m_open.call_count)
+
+        expected = call(dest, "w")
+        self.assertEqual(expected, m_open.mock_calls[0])
